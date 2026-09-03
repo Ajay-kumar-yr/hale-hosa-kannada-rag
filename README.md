@@ -1,73 +1,326 @@
 # Hale-Hosa Kannada RAG
 
-A Retrieval-Augmented Generation (RAG) pipeline for **Hale Kannada (Old Kannada) → Hosa Kannada (Modern Kannada)** translation and text modernization.
+A **Retrieval-Augmented Generation (RAG)** system for translating and modernizing **Hale Kannada (Old Kannada)** into **Hosa Kannada (Modern Kannada)**.
 
-The project combines **ChromaDB-based semantic retrieval** with **IndicTrans2** to retrieve relevant Hale Kannada → Hosa Kannada examples before generating the final modern Kannada translation.
+The system uses **ChromaDB** as a vector database to retrieve relevant Hale Kannada → Hosa Kannada examples from a cleaned parallel dataset. These retrieved examples are then provided as context to an **LLM**, which generates the final Hosa Kannada translation.
 
 ---
 
 ## 📌 Project Overview
 
-Hale Kannada contains many archaic words, grammatical forms, and expressions that are different from modern Kannada.
+Hale Kannada contains historical vocabulary, grammatical forms, and expressions that may not be well understood by modern language models.
 
-A standard translation model may struggle with rare or historically used forms.
+A normal LLM may produce incorrect translations when it encounters rare or archaic forms.
 
-This project addresses this problem using a **Retrieval-Augmented Generation pipeline**:
+This project addresses this problem using **Retrieval-Augmented Generation**.
+
+Instead of asking the LLM to translate only from its pretrained knowledge, the system first searches a domain-specific knowledge base containing Hale Kannada → Hosa Kannada examples.
+
+### Core Pipeline
 
 ```text
+User
+  ↓
 Hale Kannada Input
-       │
-       ▼
-Text Preprocessing
-       │
-       ▼
-Embedding Generation
-       │
-       ▼
-ChromaDB Vector Database
-       │
-       ▼
-Retrieve Similar Hale Kannada Examples
-       │
-       ▼
-Retrieved Hale → Hosa Context
-       │
-       ▼
-IndicTrans2
-       │
-       ▼
+  ↓
+Vector / Database Search
+  ↓
+Relevant Hale → Hosa Examples
+  ↓
+LLM
+  ↓
 Hosa Kannada Output
 ```
 
 ---
 
-## 🎯 Objectives
+## 🧠 How the RAG Pipeline Works
 
-* Translate Hale Kannada into Hosa Kannada.
-* Improve translation of rare and archaic words.
-* Retrieve similar examples from the cleaned dataset.
-* Use semantic search instead of only exact word matching.
-* Combine retrieval with the IndicTrans2 translation model.
-* Provide a reusable RAG pipeline for Hale Kannada modernization.
+### Step 1 — User Input
 
----
+The user enters a Hale Kannada word, sentence, or paragraph.
 
-## 🧠 Technologies Used
+Example:
 
-| Technology                | Purpose                     |
-| ------------------------- | --------------------------- |
-| Python                    | Core programming language   |
-| IndicTrans2               | Neural machine translation  |
-| ChromaDB                  | Vector database             |
-| Sentence Transformers     | Text embeddings             |
-| PyTorch                   | Deep learning framework     |
-| Hugging Face Transformers | Model loading and inference |
-| Pandas                    | Dataset processing          |
-| Flask                     | Optional web/API layer      |
+```text
+ಅವಳ್ ಮನಂ
+```
 
 ---
 
-## 📂 Project Structure
+### Step 2 — Query Embedding
+
+The input is converted into a vector representation using an embedding model.
+
+```text
+Hale Kannada Input
+        ↓
+Embedding Model
+        ↓
+Query Vector
+```
+
+The vector represents the semantic meaning of the input.
+
+---
+
+### Step 3 — Vector Database Search
+
+The query vector is searched against the vectors stored in **ChromaDB**.
+
+The database contains Hale Kannada → Hosa Kannada examples extracted from the cleaned dataset.
+
+```text
+                    ChromaDB
+        ┌────────────────────────────┐
+        │ Hale Kannada               │
+        │ Hosa Kannada               │
+        │ Embedding                  │
+        │ Metadata                   │
+        └────────────────────────────┘
+                    ↑
+                    │
+              Similarity Search
+                    │
+               Query Vector
+```
+
+---
+
+### Step 4 — Retrieve Relevant Examples
+
+ChromaDB returns the most relevant examples.
+
+For example:
+
+```text
+Hale Kannada: ಅವಳ್
+Hosa Kannada: ಅವಳು
+
+Hale Kannada: ಮನಂ
+Hosa Kannada: ಮನಸ್ಸು
+```
+
+These retrieved examples are the **RAG context**.
+
+They are stored in the vector database first and retrieved only when required by a query.
+
+---
+
+### Step 5 — Send Context to the LLM
+
+The retrieved examples are combined with the user's input and provided to the LLM.
+
+Conceptually:
+
+```text
+System Instruction:
+Translate Hale Kannada into Hosa Kannada.
+
+Retrieved Context:
+
+Hale Kannada: ಅವಳ್
+Hosa Kannada: ಅವಳು
+
+Hale Kannada: ಮನಂ
+Hosa Kannada: ಮನಸ್ಸು
+
+User Input:
+
+ಅವಳ್ ಮನಂ
+```
+
+The LLM uses the retrieved examples as additional knowledge when generating the translation.
+
+---
+
+### Step 6 — Hosa Kannada Output
+
+The LLM generates the final modern Kannada translation.
+
+```text
+ಅವಳು ಮನಸ್ಸು
+```
+
+The exact output depends on the input and the retrieved context.
+
+---
+
+# 🏗️ System Architecture
+
+```text
+                         ┌──────────────┐
+                         │     User     │
+                         └──────┬───────┘
+                                │
+                                ▼
+                    ┌─────────────────────┐
+                    │  Hale Kannada Input │
+                    └──────────┬──────────┘
+                               │
+                               ▼
+                    ┌─────────────────────┐
+                    │   Embedding Model   │
+                    └──────────┬──────────┘
+                               │
+                               ▼
+                    ┌─────────────────────┐
+                    │      ChromaDB       │
+                    │   Vector Database   │
+                    └──────────┬──────────┘
+                               │
+                               ▼
+                    ┌─────────────────────┐
+                    │ Relevant Hale →     │
+                    │ Hosa Examples       │
+                    └──────────┬──────────┘
+                               │
+                               ▼
+                    ┌─────────────────────┐
+                    │        LLM          │
+                    │                     │
+                    │ Input + RAG Context │
+                    └──────────┬──────────┘
+                               │
+                               ▼
+                    ┌─────────────────────┐
+                    │   Hosa Kannada      │
+                    │      Output         │
+                    └─────────────────────┘
+```
+
+---
+
+# 📊 Dataset
+
+The project uses a cleaned **Hale Kannada → Hosa Kannada parallel dataset**.
+
+The cleaned dataset is organized into training, validation, and test data.
+
+Example:
+
+```text
+cleaned_datasets/
+├── train_final.csv
+├── validation_final.csv
+└── test_final.csv
+```
+
+Each record contains a Hale Kannada source and its corresponding Hosa Kannada form.
+
+Example:
+
+```text
+Hale Kannada → Hosa Kannada
+
+ಅವಳ್ → ಅವಳು
+ಮನಂ → ಮನಸ್ಸು
+ಅವರ್ → ಅವರು
+ಇವರ್ → ಇವರು
+```
+
+The dataset serves as the primary knowledge source for the RAG vector database.
+
+---
+
+# 🗃️ ChromaDB
+
+**ChromaDB** is used as the vector database.
+
+The database stores:
+
+* Hale Kannada text
+* Corresponding Hosa Kannada translation
+* Embeddings
+* Metadata
+
+Conceptually, one stored record looks like:
+
+```text
+Document:
+ಅವಳ್
+
+Metadata:
+{
+    "hosa_kannada": "ಅವಳು"
+}
+
+Embedding:
+[0.123, -0.045, 0.891, ...]
+```
+
+The embedding allows the system to find semantically similar historical Kannada text.
+
+---
+
+# 🤖 Large Language Model
+
+The LLM is responsible for generating the final Hosa Kannada output using:
+
+1. The user's Hale Kannada input
+2. Relevant examples retrieved from ChromaDB
+3. The translation instructions
+
+The general process is:
+
+```text
+User Input
+    +
+Retrieved Examples
+    +
+Translation Instructions
+    ↓
+   LLM
+    ↓
+Hosa Kannada
+```
+
+The LLM can therefore use domain-specific examples that may not be available in its pretrained knowledge.
+
+---
+
+# 🔄 Complete RAG Flow
+
+```text
+                    CLEANED DATASET
+                           │
+                           ▼
+                   Extract Hale-Hosa
+                         Pairs
+                           │
+                           ▼
+                    Generate Embeddings
+                           │
+                           ▼
+                       ChromaDB
+                           │
+                           │
+                           │
+User ────────► Hale Kannada Query
+                           │
+                           ▼
+                    Generate Query
+                       Embedding
+                           │
+                           ▼
+                    Similarity Search
+                           │
+                           ▼
+                  Top-K Relevant Examples
+                           │
+                           ▼
+                  Build RAG Context
+                           │
+                           ▼
+                         LLM
+                           │
+                           ▼
+                    Hosa Kannada
+```
+
+---
+
+# 📂 Project Structure
 
 ```text
 hale-hosa-kannada-rag/
@@ -80,249 +333,33 @@ hale-hosa-kannada-rag/
 ├── chroma_db/
 │   └── ...
 │
-├── embeddings/
-│   └── ...
-│
 ├── scripts/
 │   ├── prepare_data.py
 │   ├── build_vector_db.py
 │   └── retrieve.py
 │
-├── app.py
 ├── rag_pipeline.py
+├── app.py
 ├── requirements.txt
+├── .env
 ├── .gitignore
 └── README.md
 ```
 
-> The exact structure may change as the project develops.
+> The structure can be updated as additional components are implemented.
 
 ---
 
-## 📊 Dataset
+# ⚙️ Installation
 
-The project uses a cleaned Hale Kannada → Hosa Kannada parallel dataset.
+## 1. Clone the Repository
 
-Each training example follows the general format:
-
-```text
-Hale Kannada → Hosa Kannada
-```
-
-Example:
-
-```text
-Hale Kannada:
-ಅವಳ್
-
-Hosa Kannada:
-ಅವಳು
-```
-
-Another example:
-
-```text
-Hale Kannada:
-ಮನಂ
-
-Hosa Kannada:
-ಮನಸ್ಸು
-```
-
-The cleaned dataset is used as the knowledge source for semantic retrieval.
-
----
-
-## 🔍 How RAG Works
-
-### 1. Load the Dataset
-
-The cleaned CSV files are loaded using Pandas.
-
-```text
-train_final.csv
-validation_final.csv
-test_final.csv
-```
-
----
-
-### 2. Create Embeddings
-
-Hale Kannada text is converted into numerical vectors using an embedding model.
-
-Conceptually:
-
-```text
-Hale Kannada text
-        ↓
-Embedding Model
-        ↓
-Vector representation
-```
-
-Semantically similar texts should have similar vector representations.
-
----
-
-### 3. Store Vectors in ChromaDB
-
-The embeddings and corresponding Hale Kannada → Hosa Kannada examples are stored in ChromaDB.
-
-```text
-ChromaDB
-
-ID
- │
- ├── Hale Kannada text
- ├── Hosa Kannada translation
- └── Embedding vector
-```
-
-This allows fast semantic retrieval.
-
----
-
-### 4. Retrieve Relevant Examples
-
-When a user enters a new Hale Kannada sentence:
-
-```text
-ಅವಳ್ ಮನಂ
-```
-
-the system searches ChromaDB for similar examples.
-
-For example:
-
-```text
-Retrieved examples:
-
-ಅವಳ್ → ಅವಳು
-
-ಮನಂ → ಮನಸ್ಸು
-```
-
-These examples become the retrieval context.
-
----
-
-### 5. Translation with IndicTrans2
-
-The retrieved examples are combined with the input and passed to the translation pipeline.
-
-```text
-Input:
-ಅವಳ್ ಮನಂ
-
-Retrieved Context:
-ಅವಳ್ → ಅವಳು
-ಮನಂ → ಮನಸ್ಸು
-
-        ↓
-
-IndicTrans2
-
-        ↓
-
-Output:
-ಅವಳು ಮನಸ್ಸು
-```
-
-The actual output depends on the model and retrieved context.
-
----
-
-## 🤖 IndicTrans2
-
-This project uses **AI4Bharat IndicTrans2** as the translation model.
-
-Model:
-
-```text
-ai4bharat/indictrans2-indic-indic-dist-320M
-```
-
-IndicTrans2 provides multilingual translation capabilities for Indian languages and is used here as the translation backbone.
-
----
-
-## 🗃️ Vector Database
-
-**ChromaDB** is used to store and retrieve the embedded Hale Kannada examples.
-
-The database allows the system to perform semantic similarity searches such as:
-
-```text
-Query
-  ↓
-Embedding
-  ↓
-ChromaDB
-  ↓
-Top-K similar examples
-```
-
-This is particularly useful for rare or uncommon Hale Kannada forms.
-
----
-
-## 🔄 Complete Pipeline
-
-```text
-                  ┌─────────────────────┐
-                  │  Cleaned Dataset    │
-                  │ Hale → Hosa pairs   │
-                  └──────────┬──────────┘
-                             │
-                             ▼
-                  ┌─────────────────────┐
-                  │  Embedding Model    │
-                  └──────────┬──────────┘
-                             │
-                             ▼
-                  ┌─────────────────────┐
-                  │     ChromaDB        │
-                  │   Vector Database   │
-                  └──────────┬──────────┘
-                             │
-                             │
-User Input ───────► Embedding
-                             │
-                             ▼
-                  ┌─────────────────────┐
-                  │ Semantic Retrieval  │
-                  │      Top-K          │
-                  └──────────┬──────────┘
-                             │
-                             ▼
-                  ┌─────────────────────┐
-                  │ Retrieved Context   │
-                  └──────────┬──────────┘
-                             │
-                             ▼
-                  ┌─────────────────────┐
-                  │    IndicTrans2      │
-                  └──────────┬──────────┘
-                             │
-                             ▼
-                  ┌─────────────────────┐
-                  │   Hosa Kannada      │
-                  └─────────────────────┘
-```
-
----
-
-## ⚙️ Installation
-
-### 1. Clone the repository
-
-```bash
+```powershell
 git clone https://github.com/Ajay-kumar-yr/hale-hosa-kannada-rag.git
 cd hale-hosa-kannada-rag
 ```
 
-### 2. Create a virtual environment
+## 2. Create a Virtual Environment
 
 Windows PowerShell:
 
@@ -336,7 +373,7 @@ Activate it:
 .venv\Scripts\Activate.ps1
 ```
 
-### 3. Install dependencies
+## 3. Install Dependencies
 
 ```powershell
 pip install -r requirements.txt
@@ -344,9 +381,9 @@ pip install -r requirements.txt
 
 ---
 
-## 📦 Required Packages
+# 📦 Main Dependencies
 
-The project requires packages such as:
+The project uses packages such as:
 
 ```text
 torch
@@ -359,7 +396,7 @@ flask
 python-dotenv
 ```
 
-The final versions should be maintained in:
+The exact package versions should be maintained in:
 
 ```text
 requirements.txt
@@ -367,55 +404,126 @@ requirements.txt
 
 ---
 
-## 🚀 Building the Vector Database
+# 🏃 Running the Pipeline
 
-After preparing the cleaned dataset, run:
+## Step 1 — Prepare the Dataset
+
+Place the cleaned datasets inside:
+
+```text
+cleaned_datasets/
+```
+
+For example:
+
+```text
+cleaned_datasets/
+├── train_final.csv
+├── validation_final.csv
+└── test_final.csv
+```
+
+---
+
+## Step 2 — Build ChromaDB
+
+Run:
 
 ```powershell
 python scripts/build_vector_db.py
 ```
 
-This will:
+This process:
 
-1. Load the cleaned dataset.
-2. Extract Hale Kannada text.
-3. Generate embeddings.
-4. Create the ChromaDB collection.
-5. Store the embeddings and translation pairs.
+```text
+CSV Dataset
+    ↓
+Hale Kannada Text
+    ↓
+Embedding Model
+    ↓
+Embeddings
+    ↓
+ChromaDB
+```
 
 ---
 
-## 🔎 Testing Retrieval
+## Step 3 — Test Retrieval
 
-To test semantic retrieval:
+Run:
 
 ```powershell
 python scripts/retrieve.py
 ```
 
-Example query:
+Enter a Hale Kannada query.
 
-```text
-ಅವಳ್ ಮನಂ
-```
-
-The system returns the most relevant Hale Kannada → Hosa Kannada examples from ChromaDB.
+The system returns the most relevant Hale Kannada → Hosa Kannada examples.
 
 ---
 
-## 🌐 Running the Application
+## Step 4 — Run the RAG Pipeline
 
-If the Flask application is enabled:
+Run:
+
+```powershell
+python rag_pipeline.py
+```
+
+The pipeline performs:
+
+```text
+Input
+ ↓
+Embedding
+ ↓
+ChromaDB Search
+ ↓
+Retrieve Top-K Examples
+ ↓
+Create Context
+ ↓
+LLM
+ ↓
+Hosa Kannada
+```
+
+---
+
+# 🌐 Web Application
+
+A Flask-based interface can be added to expose the RAG pipeline through a web application.
+
+Run:
 
 ```powershell
 python app.py
 ```
 
-The application can then be accessed locally through the Flask server.
+The web application can provide:
+
+```text
+┌─────────────────────────────────────┐
+│       Hale → Hosa Kannada           │
+├─────────────────────────────────────┤
+│                                     │
+│  Enter Hale Kannada:                │
+│                                     │
+│  ಅವಳ್ ಮನಂ                          │
+│                                     │
+│             [ Translate ]            │
+│                                     │
+├─────────────────────────────────────┤
+│  Hosa Kannada:                      │
+│                                     │
+│  ಅವಳು ಮನಸ್ಸು                       │
+└─────────────────────────────────────┘
+```
 
 ---
 
-## 🧪 Example
+# 🧪 Example
 
 ### Input
 
@@ -426,68 +534,151 @@ The application can then be accessed locally through the Flask server.
 ### Retrieved Context
 
 ```text
-ಅವಳ್ → ಅವಳು
-ಮನಂ → ಮನಸ್ಸು
+Hale Kannada: ಅವಳ್
+Hosa Kannada: ಅವಳು
+
+Hale Kannada: ಮನಂ
+Hosa Kannada: ಮನಸ್ಸು
 ```
 
-### Generated Output
+### LLM Input
+
+```text
+Translate the following Hale Kannada into Hosa Kannada.
+
+Use the retrieved examples as supporting context.
+
+Retrieved examples:
+
+ಅವಳ್ → ಅವಳು
+ಮನಂ → ಮನಸ್ಸು
+
+Input:
+ಅವಳ್ ಮನಂ
+```
+
+### Output
 
 ```text
 ಅವಳು ಮನಸ್ಸು
 ```
 
-The purpose of retrieval is to provide the translation model with relevant examples that may help with archaic vocabulary and forms.
+---
+
+# 🎯 Objectives
+
+* Build a domain-specific RAG system for historical Kannada.
+* Retrieve relevant Hale Kannada → Hosa Kannada examples.
+* Improve LLM translation using retrieved examples.
+* Handle rare and archaic Kannada vocabulary.
+* Create a reusable knowledge base using ChromaDB.
+* Evaluate the effect of retrieval on translation quality.
+* Provide a foundation for historical Kannada text modernization.
 
 ---
 
-## 📈 Future Improvements
+# 📈 Evaluation
+
+Future evaluation can compare:
+
+### Baseline
+
+```text
+Hale Kannada
+      ↓
+LLM
+      ↓
+Hosa Kannada
+```
+
+### RAG
+
+```text
+Hale Kannada
+      ↓
+ChromaDB
+      ↓
+Retrieved Examples
+      ↓
+LLM
+      ↓
+Hosa Kannada
+```
+
+Metrics that can be considered include:
+
+* BLEU
+* chrF
+* Exact Match
+* Semantic Similarity
+* Human Evaluation
+* Terminology Accuracy
+
+The goal is to determine whether retrieval improves translation of archaic and rare forms.
+
+---
+
+# 🔬 Future Improvements
 
 * Fine-tune IndicTrans2 specifically for Hale Kannada → Hosa Kannada.
-* Improve the embedding model for Kannada historical text.
-* Add metadata-based retrieval.
-* Add hybrid search combining lexical and semantic retrieval.
-* Add reranking for retrieved examples.
-* Evaluate RAG vs. non-RAG translation quality.
-* Add BLEU, chrF, and semantic evaluation.
-* Build a user-friendly web interface.
-* Support paragraph-level historical Kannada translation.
-* Add human evaluation by Kannada language experts.
+* Compare RAG with fine-tuned IndicTrans2.
+* Implement hybrid keyword + semantic retrieval.
+* Add a reranking model.
+* Improve Kannada-specific embeddings.
+* Add metadata filtering.
+* Experiment with different Top-K values.
+* Add human-reviewed translation examples.
+* Evaluate multiple LLMs.
+* Build a Flask-based production API.
+* Add paragraph-level translation.
+* Add historical vocabulary lookup.
+* Create a complete web interface.
 
 ---
 
-## 🔬 Research Direction
+# 🔗 Related Project
 
-The project can be extended into a research-oriented system for **historical Kannada text modernization**.
+The fine-tuning/translation work is maintained separately in:
 
-Potential research questions include:
+**Hale to Hosa Kannada**
 
-* Does RAG improve translation of rare Hale Kannada words?
-* Which embedding model performs best for Kannada?
-* How many retrieved examples provide the best performance?
-* Does hybrid retrieval outperform semantic-only retrieval?
-* How does RAG compare with a fine-tuned IndicTrans2 model?
-* Can human-reviewed examples improve retrieval quality?
+```text
+https://github.com/Ajay-kumar-yr/hale-to-hosa-kannada
+```
+
+This RAG repository focuses specifically on:
+
+```text
+Retrieval + Knowledge Base + LLM
+```
+
+while the other project focuses on:
+
+```text
+Dataset + Fine-tuning + Translation Model
+```
 
 ---
 
-## 📌 Project Status
+# 📌 Project Status
 
-**Current Stage:** RAG pipeline development
+**Status:** 🚧 Under Development
 
-Planned components:
+### Components
 
-* [x] Cleaned parallel dataset
+* [x] Cleaned Hale Kannada → Hosa Kannada dataset
 * [ ] Embedding generation
 * [ ] ChromaDB vector database
 * [ ] Semantic retrieval
-* [ ] IndicTrans2 integration
-* [ ] End-to-end RAG pipeline
+* [ ] RAG context construction
+* [ ] LLM integration
+* [ ] End-to-end translation
 * [ ] Evaluation
-* [ ] Web interface
+* [ ] Flask web application
 
 ---
 
-## 👨‍💻 Author
+# 👨‍💻 Author
 
 **Ajay Kumar Y R**
 
@@ -496,8 +687,8 @@ GitHub:
 
 ---
 
-## 📜 License
+# 📜 License
 
 This project is intended for research and educational purposes.
 
-Check the licenses of the datasets, embedding models, and IndicTrans2 before redistributing them or using the system commercially.
+The licenses of the datasets, embedding models, LLMs, and other third-party components should be checked before redistribution or commercial use.
